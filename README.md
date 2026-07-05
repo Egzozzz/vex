@@ -71,6 +71,7 @@ git clone https://github.com/kullanici-adi/vex.git
 cd vex
 python -m venv .venv
 source .venv/bin/activate
+pip install -r requirements.txt
 ./install.sh
 vex -h
 ...
