@@ -69,9 +69,11 @@ VEX is an automated security vulnerability scanner designed to detect potential 
 ```bash
 git clone https://github.com/kullanici-adi/vex.git
 cd vex
-chmod +x install.sh
+python -m venv .venv
+source .venv/bin/activate
 ./install.sh
-```
+vex -h
+...
 
 #### Yöntem 2: Pip ile Manuel Kurulum
 ```bash
