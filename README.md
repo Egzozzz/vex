@@ -30,7 +30,7 @@ VEX is an automated security vulnerability scanner designed to detect potential 
 #### Yöntem 1: Pip ile Kurulum (Önerilen)
 1. Repoyu klonla:
    ```bash
-   git clone https://github.com/kullanici-adi/vex.git
+   git clone https://github.com/Egzozzz/vex.git
    cd vex
    ```
 2. Projeyi yükle:
@@ -50,7 +50,7 @@ VEX is an automated security vulnerability scanner designed to detect potential 
 #### Yöntem 2: Basit Kullanım
 1. Repoyu klonla:
    ```bash
-   git clone https://github.com/kullanici-adi/vex.git
+   git clone https://github.com/Egzozzz/vex.git
    cd vex
    ```
 2. Gerekli paketleri kur:
@@ -67,7 +67,7 @@ VEX is an automated security vulnerability scanner designed to detect potential 
 
 #### Yöntem 1: Otomatik Kurulum Scripti (Önerilen)
 ```bash
-git clone https://github.com/kullanici-adi/vex.git
+git clone https://github.com/Egzozzz/vex.git
 cd vex
 python -m venv .venv
 source .venv/bin/activate
@@ -78,7 +78,7 @@ vex -h
 
 #### Yöntem 2: Pip ile Manuel Kurulum
 ```bash
-git clone https://github.com/kullanici-adi/vex.git
+git clone https://github.com/Egzozzz/vex.git
 cd vex
 pip3 install -e .
 # (Opsiyonel) AI özellikleri için:
