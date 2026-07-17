@@ -6,15 +6,25 @@ from ..payloads.sqli import (
     DBMS_ERROR_PATTERNS,
     TIME_PAYLOADS,
     all_error_payloads,
+    STACKED_PROBE_PAYLOADS,
+    UNION_PROBE_PAYLOADS,
 )
 
 
 class SQLIDetector(BaseDetector):
-    """SQLMap-inspired SQLi tespiti — sömürü yok, manuel doğrulama önerisi."""
+    """SQLMap-inspired SQLi tespiti — WAF-aware, stacked, union, blind, waktu."""
 
-    def __init__(self, session=None, timeout=8, ai_engine=None, mode='fast', custom_payloads=None):
-        super().__init__(session, timeout, ai_engine, mode, custom_payloads)
-        self.error_payloads = list(all_error_payloads())
+    def __init__(self, session=None, timeout=8, ai_engine=None, mode='fast', custom_payloads=None, stealth=True):
+        if mode == 'fast':
+            timeout = 5
+        super().__init__(session, timeout, ai_engine, mode, custom_payloads, stealth)
+        all_payloads = list(all_error_payloads())
+        if self.mode == 'fast':
+            self.error_payloads = all_payloads[:10]
+        elif self.mode == 'fuzz':
+            self.error_payloads = all_payloads[:200]
+        else:
+            self.error_payloads = all_payloads[:40]
 
     def test(self, endpoint):
         results = []
@@ -46,6 +56,23 @@ class SQLIDetector(BaseDetector):
                         resp, _ = self._request_post(endpoint, param, payload)
                         url = endpoint['url']
 
+                    # WAF block kontrolü
+                    if self._is_waf_blocking(resp):
+                        # WAF bypass dene
+                        for bp_resp, bp_elapsed, bp_url, bp_payload in self._request_with_bypass(
+                            endpoint, param, payload, 'sqli'
+                        ):
+                            if not self._is_waf_blocking(bp_resp):
+                                matched = self.analyzer.match_regex(bp_resp.text, DBMS_ERROR_PATTERNS)
+                                if matched:
+                                    results.append(self._make_result(
+                                        'sqli', bp_url, param, bp_payload, 'high', 'error-based-waf-bypass',
+                                        hint=f'WAF bypass ile SQL hatası tespit edildi ({matched}). sqlmap -u "{bp_url}" -p {param} --tamper=space2comment --batch ile doğrulayın',
+                                    ))
+                                    found_techniques.add('error')
+                                    break
+                        continue
+
                     matched = self.analyzer.match_regex(resp.text, DBMS_ERROR_PATTERNS)
                     if matched:
                         results.append(self._make_result(
@@ -57,7 +84,7 @@ class SQLIDetector(BaseDetector):
                 except Exception:
                     continue
 
-            # Phase 2: Boolean blind (SQLMap true/false karşılaştırma)
+            # Phase 2: Boolean blind
             if 'boolean' not in found_techniques and baseline_body:
                 for true_p, false_p in BOOLEAN_PAIRS:
                     try:
@@ -68,6 +95,9 @@ class SQLIDetector(BaseDetector):
                             true_resp, _ = self._request_post(endpoint, param, true_p)
                             false_resp, _ = self._request_post(endpoint, param, false_p)
                             url = endpoint['url']
+
+                        if self._is_waf_blocking(true_resp) or self._is_waf_blocking(false_resp):
+                            continue
 
                         if self.analyzer.boolean_blind_signal(
                             true_resp.text, false_resp.text, baseline_body
@@ -81,9 +111,9 @@ class SQLIDetector(BaseDetector):
                     except Exception:
                         continue
 
-            # Phase 3: Time-based hint (SQLMap — sadece gecikme sinyali)
+            # Phase 3: Time-based
             if 'time' not in found_techniques:
-                for payload, dbms in TIME_PAYLOADS[:4]:
+                for payload, dbms in TIME_PAYLOADS[:6]:
                     try:
                         if method == 'GET':
                             _, elapsed, url = self._request_get(endpoint, param, payload)
@@ -100,5 +130,75 @@ class SQLIDetector(BaseDetector):
                             break
                     except Exception:
                         continue
+
+            # Phase 4: Stacked queries
+            if 'stacked' not in found_techniques:
+                for payload in STACKED_PROBE_PAYLOADS[:8]:
+                    try:
+                        if method == 'GET':
+                            resp, _, url = self._request_get(endpoint, param, payload)
+                        else:
+                            resp, _ = self._request_post(endpoint, param, payload)
+                            url = endpoint['url']
+
+                        if self._is_waf_blocking(resp):
+                            continue
+
+                        if resp.status_code == 200 and len(resp.text) > 0:
+                            if self.analyzer.significant_diff(baseline_body, resp.text):
+                                results.append(self._make_result(
+                                    'sqli', url, param, payload, 'low', 'stacked-query',
+                                    hint=f'Stacked query sinyali — sqlmap -u "{url}" -p {param} --technique=S --batch ile test edin',
+                                ))
+                                found_techniques.add('stacked')
+                                break
+                    except Exception:
+                        continue
+
+            # Phase 5: UNION-based column count
+            if 'union' not in found_techniques:
+                for payload in UNION_PROBE_PAYLOADS[:6]:
+                    try:
+                        if method == 'GET':
+                            resp, _, url = self._request_get(endpoint, param, payload)
+                        else:
+                            resp, _ = self._request_post(endpoint, param, payload)
+                            url = endpoint['url']
+
+                        if self._is_waf_blocking(resp):
+                            continue
+
+                        matched = self.analyzer.match_regex(resp.text, DBMS_ERROR_PATTERNS)
+                        if matched and 'column' in matched.lower():
+                            results.append(self._make_result(
+                                'sqli', url, param, payload, 'medium', 'union-column-count',
+                                hint=f'UNION sütun sayısı sinyali. sqlmap -u "{url}" -p {param} --technique=U --batch ile test edin',
+                            ))
+                            found_techniques.add('union')
+                            break
+                    except Exception:
+                        continue
+
+            # Phase 6: WAF-aware bypass denemesi
+            if self.detected_wafs and self.detected_wafs != ["unknown"]:
+                if not found_techniques:
+                    waf_bypass_payloads = [
+                        "' OR '1'='1", "' AND '1'='1", "1' OR '1'='1",
+                    ]
+                    for wb_payload in waf_bypass_payloads:
+                        for bp_resp, bp_elapsed, bp_url, bp_payload in self._request_with_bypass(
+                            endpoint, param, wb_payload, 'sqli'
+                        ):
+                            if not self._is_waf_blocking(bp_resp):
+                                matched = self.analyzer.match_regex(bp_resp.text, DBMS_ERROR_PATTERNS)
+                                if matched:
+                                    results.append(self._make_result(
+                                        'sqli', bp_url, param, bp_payload, 'high', 'waf-bypass-error',
+                                        hint=f'WAF bypass ile SQL hatası ({matched}). sqlmap -u "{bp_url}" -p {param} --tamper=space2comment,randomcase --batch ile doğrulayın',
+                                    ))
+                                    found_techniques.add('waf-bypass')
+                                    break
+                        if 'waf-bypass' in found_techniques:
+                            break
 
         return results

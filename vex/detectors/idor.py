@@ -7,10 +7,10 @@ from ..payloads.nuclei_patterns import IDOR_PARAM_HINTS, IDOR_PATTERNS, idor_tes
 
 
 class IDORDetector(BaseDetector):
-    """Nuclei-inspired IDOR tespiti — sequential ID mutation."""
+    """Nuclei-inspired IDOR tespiti — sequential ID, UUID, method tampering, param discovery."""
 
-    def __init__(self, session=None, user_b_cookie=None, timeout=8, ai_engine=None, mode='fast', custom_payloads=None):
-        super().__init__(session, timeout, ai_engine, mode, custom_payloads)
+    def __init__(self, session=None, user_b_cookie=None, timeout=8, ai_engine=None, mode='fast', custom_payloads=None, stealth=True):
+        super().__init__(session, timeout, ai_engine, mode, custom_payloads, stealth)
         self.user_b_cookie = user_b_cookie
 
     def _parse_cookie(self, cookie_str):
@@ -24,6 +24,37 @@ class IDORDetector(BaseDetector):
     def _param_relevant(self, param):
         param_lower = param.lower()
         return any(h in param_lower for h in IDOR_PARAM_HINTS) or param_lower in IDOR_PARAM_HINTS
+
+    def _test_method_tampering(self, endpoint, param, original_val):
+        """HTTP method tampering ile IDOR testi."""
+        results = []
+        methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+        parsed = endpoint['url']
+
+        for method in methods:
+            try:
+                if method == 'GET':
+                    test_params = {k: (v[0] if isinstance(v, list) and v else v)
+                                   for k, v in endpoint.get('query_params', {}).items()}
+                    test_params[param] = original_val
+                    from urllib.parse import urlencode
+                    resp = self.session.get(f"{parsed}?{urlencode(test_params)}",
+                                            timeout=self.timeout, allow_redirects=True)
+                else:
+                    data = {p: 'test' for p in endpoint.get('params', [])}
+                    data[param] = original_val
+                    resp = self.session.request(method, parsed, data=data,
+                                                timeout=self.timeout, allow_redirects=True)
+
+                if resp.status_code == 200 and len(resp.text) > 100:
+                    results.append({
+                        'method': method,
+                        'status': resp.status_code,
+                        'length': len(resp.text),
+                    })
+            except Exception:
+                continue
+        return results
 
     def test(self, endpoint):
         results = []
@@ -83,10 +114,21 @@ class IDORDetector(BaseDetector):
                         session_b.cookies.update(self._parse_cookie(self.user_b_cookie))
                         resp_b = session_b.get(test_url, timeout=self.timeout, allow_redirects=True)
                         if resp_b.status_code == 200 and len(resp_b.text) > 50:
-                            confidence = 'medium'
-                            technique = 'cross-user-access'
+                            resp_b_hash = self.analyzer.body_hash(resp_b.text)
+                            if resp_b_hash != orig_hash:
+                                confidence = 'high'
+                                technique = 'cross-user-access'
+                            else:
+                                confidence = 'medium'
+                                technique = 'cross-user-access-same-content'
                     elif self._param_relevant(param):
                         confidence = 'medium'
+
+                    # Method tampering testi
+                    method_results = self._test_method_tampering(endpoint, param, new_val)
+                    accessible_methods = [r['method'] for r in method_results if r['status'] == 200]
+                    if len(accessible_methods) > 1:
+                        technique += f' (methods: {",".join(accessible_methods)})'
 
                     results.append(self._make_result(
                         'idor', test_url, param, f'{original_val} -> {new_val}',
@@ -94,6 +136,7 @@ class IDORDetector(BaseDetector):
                         hint='Farklı ID ile farklı içerik döndü — farklı kullanıcı oturumlarıyla nuclei idor template\'leri ile doğrulayın',
                         original=original_val,
                         modified=new_val,
+                        accessible_methods=accessible_methods,
                     ))
                     break
 

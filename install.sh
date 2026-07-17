@@ -1,47 +1,82 @@
 #!/bin/bash
+# VEX - Vulnerability Explorer
+# Kali Linux / Linux Installation Script
 
-# VEX - Vulnerability Explorer Kurulum Scripti
-# Kali Linux ve benzeri Debian tabanlı sistemler için
+set -e
 
+# Colors
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+echo -e "${CYAN}"
 echo "██╗   ██╗███████╗██╗  ██╗"
 echo "██║   ██║██╔════╝╚██╗██╔╝"
 echo "██║   ██║█████╗   ╚███╔╝ "
 echo "╚██╗ ██╔╝██╔══╝   ██╔██╗ "
 echo " ╚████╔╝ ███████╗██╔╝ ██╗"
 echo "  ╚═══╝  ╚══════╝╚═╝  ╚═╝"
-echo "VEX - Vulnerability Explorer"
+echo -e "${NC}"
+echo -e "${GREEN}VEX - Vulnerability Explorer Installer${NC}"
+echo -e "${YELLOW}Kali Linux / Linux${NC}"
 echo ""
 
-# Python 3 ve pip kontrolü
-echo "[*] Python 3 ve pip kontrol ediliyor..."
+# Check Python
 if ! command -v python3 &> /dev/null; then
-    echo "[!] Python 3 bulunamadı! Kuruluyor..."
-    sudo apt update
-    sudo apt install -y python3 python3-pip python3-venv
-else
-    echo "[+] Python 3 bulundu"
+    echo -e "${RED}[!] Python3 is required. Install it with: sudo apt install python3${NC}"
+    exit 1
 fi
 
-# Proje dizinine git
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR" || exit 1
+echo -e "${CYAN}[*] Python3 found: $(python3 --version)${NC}"
 
-# Gerekli paketleri yükle (pip install -e .)
-echo "[*] Gerekli Python paketleri yükleniyor..."
+# Install pip if needed
+if ! command -v pip3 &> /dev/null; then
+    echo -e "${YELLOW}[!] pip3 not found. Installing...${NC}"
+    sudo apt update && sudo apt install -y python3-pip
+fi
+
+# Install dependencies
+echo -e "${CYAN}[*] Installing Python dependencies...${NC}"
+pip3 install -r requirements.txt
+
+# Install VEX
+echo -e "${CYAN}[*] Installing VEX...${NC}"
 pip3 install -e .
 
-# (Opsiyonel) AI özellikleri için openai yükle
+# Optional: install AI extras
 echo ""
-read -p "AI (OpenAI) özelliklerini yüklemek istiyor musun? (e/H): " -n 1 -r
-echo    # (optional) move to a new line
-if [[ $REPLY =~ ^[EeYy]$ ]]; then
-    echo "[*] OpenAI bağımlılıkları yükleniyor..."
+echo -e "${YELLOW}[?] Install AI engine support (OpenAI)? [y/N]${NC}"
+read -r answer
+if [[ "$answer" =~ ^[Yy]$ ]]; then
     pip3 install -e ".[ai]"
+    echo -e "${GREEN}[+] AI engine installed${NC}"
+fi
+
+# Optional: install recommended tools
+echo ""
+echo -e "${YELLOW}[?] Install recommended security tools (sqlmap, nuclei, etc.)? [y/N]${NC}"
+read -r answer
+if [[ "$answer" =~ ^[Yy]$ ]]; then
+    echo -e "${CYAN}[*] Installing tools...${NC}"
+    if command -v apt &> /dev/null; then
+        sudo apt install -y sqlmap
+        # Nuclei
+        if ! command -v nuclei &> /dev/null; then
+            echo -e "${CYAN}[*] Installing nuclei...${NC}"
+            go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest 2>/dev/null || \
+                wget -q https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_linux_amd64.zip && \
+                unzip -o nuclei_linux_amd64.zip && sudo mv nuclei /usr/local/bin/ && rm nuclei_linux_amd64.zip
+        fi
+    fi
+    echo -e "${GREEN}[+] Security tools installed${NC}"
 fi
 
 echo ""
-echo "[+] Kurulum tamamlandı!"
-echo "[*] Yardım için: vex -h"
-echo "[*] Kullanım örneği: vex -u https://ornek.site"
-echo ""
-echo "[*] (İpucu: .env.example dosyasını .env olarak kopyalayıp düzenleyerek AI motorunu yapılandırabilirsiniz!)"
+echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║  VEX installed successfully!          ║${NC}"
+echo -e "${GREEN}╠════════════════════════════════════════╣${NC}"
+echo -e "${GREEN}║  Usage: vex -u https://target.com     ║${NC}"
+echo -e "${GREEN}║  Help:  vex -h                        ║${NC}"
+echo -e "${GREEN}╚════════════════════════════════════════╝${NC}"

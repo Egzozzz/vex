@@ -1,33 +1,34 @@
 # VEX - Vulnerability Explorer
 
 ⚠️ **YASAL UYARI & ETİK KULLANIM | LEGAL & ETHICAL USE**
-Bu araç sadece **izin verilen sistemlerde** test amacıyla kullanılmalıdır. This tool should only be used on systems you own or have explicit permission to test.
-- Başka insanların sistemlerinde izinsiz test yapmak yasal sorumluluk doğurur! Unauthorized testing on systems you do not own is illegal and may result in criminal charges.
-- Bu aracı kullanırken tüm yerel ve uluslararası yasaları, özellikle de bilgisayar suçları yasalarını takip etmek sizin sorumluluğunuzdadır.
+Bu araç sadece **izin verilen sistemlerde** test amacıyla kullanılmalıdır.
+- Başka insanların sistemlerinde izinsiz test yapmak yasal sorumluluk doğurur!
+- Bu aracı kullanırken tüm yerel ve uluslararası yasaları takip etmek sizin sorumluluğunuzdadır.
 - Geliştiriciler, bu aracın yanlış kullanımından sorumlu tutulamaz.
 
-## Kısa Açıklama | Short Description
+## Kısa Açıklama
 
-**Türkçe**:
-VEX, otomatik güvenlik zafiyeti tarama aracıdır. Web uygulamalarında SQL Injection, Cross-Site Scripting (XSS), XML External Entity (XXE), IDOR, RCE, Broken Access Control, Path Traversal ve SSRF gibi potansiyel zafiyetleri tespit eder. Akıllı keşif, dizin brute-force, alt alan adı tarama ve AI destekli payload üretimi gibi özellikler sunar. Tespitler sonrası kullanıcıya manuel doğrulama için öneriler verir.
+**VEX**, gelişmiş siber güvenlik zafiyet tarama aracıdır. WAF atlatma, stealth tarama, otomatik payload üretimi ve PoC komutlarıyla donatılmıştır.
 
-**English**:
-VEX is an automated security vulnerability scanner designed to detect potential flaws in web applications, including SQL Injection, Cross-Site Scripting (XSS), XML External Entity (XXE), IDOR, RCE, Broken Access Control, Path Traversal, and SSRF. It offers smart crawling, directory brute-forcing, subdomain scanning, and AI-assisted payload generation, and provides manual verification recommendations after detection.
+## v0.5.0 Yenilikleri
 
-## Özellikler
+- **Gelişmiş WAF Bypass Motoru**: Cloudflare, Akamai, ModSecurity, AWS WAF, Imperva, Sucuri, Fortinet, Barracuda, Wordfence
+- **Stealth Engine**: Proxy desteği, header rotasyonu, rate limiting, JA3 fingerprint evasion
+- **Context-Aware XSS**: HTML/body/attribute/JS/URL bağlamı tespiti
+- **SSTI Multi-Engine**: Jinja2, Twig, Freemarker, Velocity, ERB, EJS, Handlebars, Pug
+- **Cloud Metadata SSRF**: AWS, GCP, Azure metadata endpoint testleri
+- **Method Tampering**: IDOR ve BAC için HTTP method bypass
+- **JS Endpoint Discovery**: JavaScript dosyalarından API endpoint çıkarma
+- **CVSS Skorlama & PoC Üretimi**: Otomatik risk skoru ve PoC komutları
+- **Gelişmiş Raporlama**: JSON, Markdown, HTML formatlarında interaktif raporlar
+- **Built-in Help Sistemi**: `--help-vulns` ve `--help-tools` komutları
 
-- **Çoklu Zafiyet Tespiti**: SQLi, XSS, XXE, IDOR, RCE, BAC, Path Traversal, SSRF
-- **Dizin Bruteforce**: Özel wordlistler ile dizin keşfi
-- **Alt Alan Adı Keşfi**: Yaygın alt alan adlarını tarama
-- **AI Motoru**: Smart mode ile akıllı payload üretimi (OpenAI uyumlu)
-- **Özel Payloadlar**: Kendi payload dosyalarınızı kullanma
-- **Gelişmiş Raporlama**: JSON, Markdown, HTML formatlarında raporlar
+## Kurulum
 
-## Kurulum ve Kullanım
-
-### Windows Kurulumu
+### Windows (CMD / PowerShell)
 
 #### Yöntem 1: Pip ile Kurulum (Önerilen)
+<<<<<<< HEAD
 1. Repoyu klonla:
    ```bash
    git clone https://github.com/Egzozzz/vex.git
@@ -63,9 +64,33 @@ VEX is an automated security vulnerability scanner designed to detect potential 
    vex.bat -u https://site.com
    ```
 
-### Linux / Kali Linux Kurulumu
+```cmd
+git clone https://github.com/kullanici-adi/vex.git
+cd vex
+pip install -e .
+vex -h
+```
 
-#### Yöntem 1: Otomatik Kurulum Scripti (Önerilen)
+#### Yöntem 2: Otomatik Kurulum
+```cmd
+install_windows.bat
+```
+`install_windows.bat` çalıştırın, tüm bağımlılıklar otomatik kurulur.
+
+
+#### Yöntem 3: vex.bat ile Taşınabilir Kullanım
+```cmd
+vex.bat -u https://site.com
+vex.bat --type sqli xss
+```
+Hiçbir kurulum gerektirmez. `vex.bat` VEX'i otomatik olarak bulur ve çalıştırır.
+
+#### Yöntem 4: PowerShell ile
+```powershell
+.\vex.ps1 -u https://site.com
+```
+
+### Linux / Kali
 ```bash
 git clone https://github.com/Egzozzz/vex.git
 cd vex
@@ -75,7 +100,7 @@ pip install -r requirements.txt
 ./install.sh
 vex -h
 ...
-
+  HEAD
 #### Yöntem 2: Pip ile Manuel Kurulum
 ```bash
 git clone https://github.com/Egzozzz/vex.git
@@ -85,92 +110,152 @@ pip3 install -e .
 pip3 install -e ".[ai]"
 ```
 
+=======
+ 7e54534 (v0.5.0 - Major Update)
 ## Kullanım
 
-### Temel Kullanım
+### Temel Tarama
 ```bash
-# Basit tarama
 vex -u https://site.com
-
-# Sadece SQLi tara
-vex -u https://site.com --type sqli
-
-# Wordlist ile dizin brute-force
-vex -u https://site.com -w /usr/share/wordlists/dirb/common.txt
-
-# Sonuçları kaydet (JSON/MD/HTML)
-vex -u https://site.com -o results.html
 ```
 
-### Yardım
+### Belirli Zafiyet Türleri
 ```bash
-vex -h
+vex -u https://site.com --type sqli xss rce
 ```
 
-### Parametreler
-
-#### Keşif ve Kapsam
-- `-u, --url <url>`: Hedef temel URL.
-- `-w, --wordlist <dosya>`: Dizin/dosya keşfi için wordlist.
-- `-x, --exclude <regex>`: Belirli yol/parametreleri dışarıda bırak.
-- `--depth <n>`: Crawler derinliği (varsayılan: 3).
-- `--include-subdomains`: Alt alan adlarını dahil et.
-
-#### AI & Analiz Motoru
-- `-m, --mode <mod>`: Çalışma modu (fast, smart, fuzz).
-- `--ai-model <model_adi>`: AI model adı (örn: gpt-4o, varsayılan: gpt-4o-mini).
-- `--api-key <key>`: OpenAI API anahtarı.
-
-#### Kimlik Doğrulama ve IDOR/CSRF Testi
-- `-c, --cookie <cerez>`: Oturum çerezi.
-- `--auth-header <header>`: Authorization başlığı.
-- `--user-b <cookie>`: IDOR için ikinci kullanıcı çerezi.
-- `--csrf-token <token>`: CSRF token.
-
-#### Saldırı Vektörleri
-- `--type <tur>`: Belirli açık türlerine odaklan (sqli, xss, idor, rce, xxe, ssrf, path, bac).
-- `--custom-payloads <dosya>`: Özel payload dosyası.
-
-#### Çıktı ve Raporlama
-- `-o, --output <dosya>`: Sonuçları dosyaya kaydet (.json, .md, .html).
-- `--verbose`: Detaylı çıktı.
-- `--json`: JSON formatında çıktı.
-
-## Örnekler
-
+### WAF Bypass + Stealth
 ```bash
-# Sadece SQLi ve XSS tara
-vex -u https://site.com --type sqli xss
+vex -u https://site.com --waf-bypass --stealth-level 3 --proxy socks5://127.0.0.1:9050
+```
 
-# HTML raporu kaydet
+### Kimlik Doğrulama ile
+```bash
+vex -u https://site.com -c "PHPSESSID=abc123" --auth-header "Authorization: Bearer token"
+```
+
+### Raporlama
+```bash
 vex -u https://site.com -o report.html
-
-# Cookie ve AI mode ile tarama
-vex -u https://site.com -c "PHPSESSID=abc123" -m smart
-
-# Alt alan adlarını dahil et
-vex -u https://site.com --include-subdomains
+vex -u https://site.com -o report.json
+vex -u https://site.com -o report.md
 ```
 
-## Konfigürasyon
-
-### .env Dosyası
-AI motorunu yapılandırmak için `.env.example` dosyasını `.env` olarak kopyalayıp düzenleyebilirsiniz:
+### Gizli Endpoint Keşfi
 ```bash
-cp .env.example .env
-# .env dosyasını düzenle ve API anahtarını ekle
+vex -u https://site.com --discover-hidden
 ```
+
+### IDOR Cross-User Test
+```bash
+vex -u https://site.com --type idor --user-b "SESSION_COOKIE_USER_B"
+```
+
+### AI Destekli Tarama
+```bash
+vex -u https://site.com -m smart --api-key YOUR_OPENAI_KEY
+```
+
+### Help Komutları
+```bash
+vex --help-vulns     # Desteklenen zafiyet türleri hakkında bilgi
+vex --help-tools     # Önerilen dış araçlar hakkında bilgi
+```
+
+## Parametreler
+
+### Keşif ve Kapsam
+| Parametre | Açıklama |
+|---|---|
+| `-u, --url` | Hedef temel URL |
+| `-w, --wordlist` | Dizin/dosya keşfi için wordlist |
+| `-x, --exclude` | Belirli yolları dışarıda bırak |
+| `--depth` | Crawler derinliği (varsayılan: 3) |
+| `--include-subdomains` | Alt alan adlarını dahil et |
+| `--discover-hidden` | Gizli endpoint keşfi |
+| `--no-stealth` | Stealth modunu kapat |
+
+### AI & Analiz
+| Parametre | Açıklama |
+|---|---|
+| `-m, --mode` | Çalışma modu (fast, smart, fuzz) |
+| `--ai-model` | AI model adı |
+| `--api-key` | OpenAI API anahtarı |
+
+### Kimlik Doğrulama
+| Parametre | Açıklama |
+|---|---|
+| `-c, --cookie` | Oturum çerezi |
+| `--auth-header` | Authorization başlığı |
+| `--user-b` | IDOR için ikinci kullanıcı |
+| `--csrf-token` | CSRF token |
+
+### Saldırı Vektörleri
+| Parametre | Açıklama |
+|---|---|
+| `--type` | Zafiyet türleri (sqli, xss, rce, ssrf, path, xxe, idor, bac) |
+| `--custom-payloads` | Özel payload dosyası |
+| `--waf-bypass` | WAF bypass aktifleştir |
+
+### Stealth & Proxy
+| Parametre | Açıklama |
+|---|---|
+| `--proxy` | Proxy adresi (socks5://, http://) |
+| `--stealth-level` | 0=pasif, 1=normal, 2=stealth, 3=agresif |
+| `--rate-limit` | Dakikadaki maks istek |
+| `--delay` | İstekler arası bekleme |
+
+### Çıktı
+| Parametre | Açıklama |
+|---|---|
+| `-o, --output` | Rapor dosyası (.json, .md, .html) |
+| `--verbose` | Detaylı çıktı |
+| `--json` | JSON formatında çıktı |
 
 ## Desteklenen Zafiyet Türleri
-- SQL Injection (SQLi)
-- Cross-Site Scripting (XSS)
-- XML External Entity (XXE)
-- Insecure Direct Object Reference (IDOR)
-- Remote Code Execution (RCE)
-- Broken Access Control (BAC)
-- Path Traversal
-- Server-Side Request Forgery (SSRF)
+
+| Tür | Teknikler | Dış Araçlar |
+|---|---|---|
+| **SQLi** | Error-based, Boolean blind, Time-based, Stacked, UNION, WAF bypass | sqlmap |
+| **XSS** | Reflected, Context-aware, DOM, Filter bypass, WAF bypass | dalfox, XSStrike, XSSer |
+| **RCE** | Command injection, SSTI (11 motor), Commix-style | commix, nuclei |
+| **SSRF** | Content match, Response diff, Cloud metadata, Blind, Protocol | SSRFmap, Gopherus |
+| **Path Traversal** | File read, Encoding, DotDotPwn, WAF bypass | dotdotpwn, nuclei |
+| **XXE** | Entity expansion, OOB, DTD, Protocol | Burp Suite |
+| **IDOR** | Sequential ID, UUID, Cross-user, Method tampering | nuclei, Autorize |
+| **BAC** | Admin panel, Method bypass, Header bypass, Auth bypass | nuclei |
+
+## Desteklenen WAF'lar
+
+| WAF | Tespit | Bypass Teknikleri |
+|---|---|---|
+| Cloudflare | Header/Content | IP rotation, Unicode, Encoding |
+| Akamai | Header/Content | URL bypass, Encoding |
+| ModSecurity | Header/Content | Tamper scripts, Case variation |
+| AWS WAF | Header/Content | IP bypass, Header injection |
+| F5 BIG-IP | Header/Content | Encoding, Chunked |
+| Imperva/Incapsula | Header/Content | IP rotation, Unicode |
+| Sucuri | Header/Content | Encoding, Delay |
+| Wordfence | Header/Content | Case variation, Encoding |
+| Fortinet | Header/Content | Encoding, Delay |
+| Barracuda | Header/Content | Encoding, Tamper |
+
+## Raporlama Formatları
+
+### JSON
+- CVSS skorları
+- PoC komutları
+- Özet istatistikleri
+
+### HTML
+- İnteraktif arayüz
+- Koyu tema
+- Renk kodlu ciddiyet seviyeleri
+- Kopyalanabilir PoC komutları
+
+### Markdown
+- CI/CD entegrasyonu için uygun
+- GitHub/GitLab README desteği
 
 ## Katkıda Bulunma
 Pull request'ler ve issue'ler her zaman kabul edilir!
-
