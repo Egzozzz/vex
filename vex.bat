@@ -20,19 +20,18 @@ if %errorlevel% neq 0 (
 
 REM Find VEX installation directory
 set "VEX_DIR=%~dp0"
-if "%VEX_DIR%"=="" set "VEX_DIR=%CD%\"
 
-REM Check if VEX is installed as a package
+REM Check/install VEX package
 %PYTHON% -c "import vex" >nul 2>&1
 if %errorlevel% neq 0 (
-    REM Install VEX first
     echo [*] VEX ilk kullanim icin kuruluyor...
     cd /d "%VEX_DIR%"
+    %PYTHON% -m pip install --upgrade pip setuptools wheel -q
     %PYTHON% -m pip install -e . >nul 2>&1
     if %errorlevel% neq 0 (
         %PYTHON% -m pip install -r requirements.txt >nul 2>&1
     )
-    echo [+] VEX kuruldu!
+    echo [+] VEX hazir!
 )
 
 REM Run VEX with all arguments

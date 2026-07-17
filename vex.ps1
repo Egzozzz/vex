@@ -33,12 +33,13 @@ try {
 } catch {
     Write-Host "[*] VEX ilk kullanim icin kuruluyor..." -ForegroundColor Cyan
     Push-Location $VexDir
+    & $python -m pip install --upgrade pip setuptools wheel -q 2>$null
     & $python -m pip install -e . 2>$null
     if ($LASTEXITCODE -ne 0) {
         & $python -m pip install -r requirements.txt 2>$null
     }
     Pop-Location
-    Write-Host "[+] VEX kuruldu!" -ForegroundColor Green
+    Write-Host "[+] VEX hazir!" -ForegroundColor Green
 }
 
 # Run VEX

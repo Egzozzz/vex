@@ -1,6 +1,6 @@
 @echo off
 REM ============================================
-REM VEX - Windows Kurulum Scripti
+REM VEX - Windows Kurulum Scripti v0.5.0
 REM ============================================
 title VEX Windows Kurulumu
 color 0B
@@ -13,18 +13,17 @@ echo ╚██╗ ██╔╝██╔══╝   ██╔██╗
 echo  ╚████╔╝ ███████╗██╔╝ ██╗
 echo   ╚═══╝  ╚══════╝╚═╝  ╚═╝
 echo VEX - Vulnerability Explorer v0.5.0
-echo Windows Kurulum Scripti
+echo Windows Kurulumu
 echo.
 
-REM Check Python
+REM Python kontrol
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
     py --version >nul 2>&1
     if %errorlevel% neq 0 (
-        echo [ERROR] Python bulunamadi!
-        echo Lutfen https://www.python.org/downloads/ adresinden Python 3.8+ indirin.
-        echo Kurulum sirasinda "Add Python to PATH" secenegini ISARETLEYIN.
-        echo.
+        echo [HATA] Python bulunamadi!
+        echo https://python.org adresinden Python 3.8+ indirin.
+        echo Kurulumda "Add Python to PATH" secenegini isaretleyin.
         pause
         exit /b 1
     )
@@ -32,30 +31,43 @@ if %errorlevel% neq 0 (
 ) else (
     set PYTHON=python
 )
-
-echo [*] Python bulundu: 
+echo [OK] Python: 
 %PYTHON% --version
 
-REM Install dependencies
+REM pip'i guncelle
+echo.
+echo [*] pip guncelleniyor...
+%PYTHON% -m pip install --upgrade pip -q
+
+REM Bagimliliklari yukle
 echo.
 echo [*] Bagimliliklar yukleniyor...
-%PYTHON% -m pip install --upgrade pip -q
 %PYTHON% -m pip install -r requirements.txt
 if %errorlevel% neq 0 (
-    echo [ERROR] Bagimliliklar yuklenemedi!
+    echo [HATA] Bagimliliklar yuklenemedi!
     pause
     exit /b 1
 )
-echo [+] Bagimliliklar yuklendi!
+echo [OK] Bagimliliklar yuklendi
 
-REM Install VEX
+REM VEX'i yukle
 echo.
 echo [*] VEX yukleniyor...
 %PYTHON% -m pip install -e .
 if %errorlevel% neq 0 (
-    echo [WARNING] pip kurulumu basarisiz, dogrudan kullanim icin hazir.
+    echo [UYARI] pip kurulumu basarisiz, dogrudan kullanim hazir.
 ) else (
-    echo [+] VEX basariyla yuklendi!
+    echo [OK] VEX basariyla yuklendi
+)
+
+REM AI opsiyonu
+echo.
+set /p AI_ANSWER=AI motoru (OpenAI) kurulsun mu? [e/H]
+
+if /i "%AI_ANSWER%"=="e" (
+    echo [*] AI motoru yukleniyor...
+    %PYTHON% -m pip install openai
+    echo [OK] AI motoru kuruldu
 )
 
 REM Test
@@ -63,9 +75,9 @@ echo.
 echo [*] VEX test ediliyor...
 %PYTHON% -m vex --version >nul 2>&1
 if %errorlevel% equ 0 (
-    echo [+] VEX calisiyor!
+    echo [OK] VEX calisiyor!
 ) else (
-    echo [WARNING] Test basarisiz, vex.bat dosyasini kullanin.
+    echo [UYARI] Test basarisiz. vex.bat ile deneyin.
 )
 
 echo.
@@ -73,8 +85,8 @@ echo ============================================
 echo KULLANIM:
 echo   vex -u https://site.com
 echo   vex.bat -u https://site.com
+echo   vex.ps1 -u https://site.com
 echo   python -m vex -u https://site.com
 echo ============================================
 echo.
-
 pause
